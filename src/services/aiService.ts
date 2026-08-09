@@ -79,7 +79,7 @@ function getRecommendationLevelFromScore(score: number) {
   return 'Avoid For Now';
 }
 
-export async function getSpendingVibeCheck(expenses: any[], incomes: any[]) {
+export async function getSpendingVibeCheck(expenses: any[], _incomes: any[]) {
   const apiKey = import.meta.env.VITE_AI_API_KEY;
   if (!apiKey) {
     throw new Error("No AI API Key found.");
