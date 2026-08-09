@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RefreshCw, PlusCircle, Trash2 } from 'lucide-react';
+import { RefreshCw, PlusCircle, Trash2, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -22,6 +22,7 @@ export default function Subscriptions() {
   const [cost, setCost] = useState('');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [nextBillingDate, setNextBillingDate] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) fetchData();
@@ -38,22 +39,45 @@ export default function Subscriptions() {
     e.preventDefault();
     if (!user) return;
 
-    const { data, error } = await supabase.from('subscriptions').insert({
+    const payload = {
       user_id: user.id,
       name,
       cost: parseFloat(cost),
       billing_cycle: billingCycle,
       next_billing_date: nextBillingDate || null
-    }).select();
+    };
+
+    let response;
+    if (editingId) {
+      response = await supabase.from('subscriptions').update(payload).eq('id', editingId).select();
+    } else {
+      response = await supabase.from('subscriptions').insert(payload).select();
+    }
+
+    const { data, error } = response;
 
     if (!error && data) {
-      setSubscriptions([data[0], ...subscriptions]);
+      if (editingId) {
+        setSubscriptions(subscriptions.map(s => s.id === editingId ? data[0] : s));
+        toast.success('Subscription updated successfully!');
+      } else {
+        setSubscriptions([data[0], ...subscriptions]);
+        toast.success('Subscription added successfully!');
+      }
       setShowModal(false);
       resetForm();
-      toast.success('Subscription added successfully!');
     } else {
-      toast.error('Failed to add subscription');
+      toast.error(`Failed to ${editingId ? 'update' : 'add'} subscription`);
     }
+  };
+
+  const handleEdit = (sub: Subscription) => {
+    setEditingId(sub.id);
+    setName(sub.name);
+    setCost(sub.cost.toString());
+    setBillingCycle(sub.billing_cycle);
+    setNextBillingDate(sub.next_billing_date ? new Date(sub.next_billing_date).toISOString().split('T')[0] : '');
+    setShowModal(true);
   };
 
   const deleteSubscription = async (id: string) => {
@@ -68,6 +92,7 @@ export default function Subscriptions() {
     setCost('');
     setBillingCycle('monthly');
     setNextBillingDate('');
+    setEditingId(null);
   };
 
   const insertDemoData = async () => {
@@ -151,10 +176,15 @@ export default function Subscriptions() {
               <Card className="relative overflow-hidden group hover:shadow-md transition-all h-full border-border/50">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
-                    <CardTitle className="truncate pr-4">{sub.name}</CardTitle>
-                    <button onClick={() => deleteSubscription(sub.id)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-6">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <CardTitle className="truncate pr-12">{sub.name}</CardTitle>
+                    <div className="flex gap-2 absolute right-4 top-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleEdit(sub)} className="text-muted-foreground hover:text-primary transition-colors">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => deleteSubscription(sub.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   {sub.next_billing_date && (
                     <CardDescription>Next bill: {new Date(sub.next_billing_date).toLocaleDateString()}</CardDescription>
@@ -176,7 +206,7 @@ export default function Subscriptions() {
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
             <Card className="shadow-lg border-2">
               <CardHeader>
-                <CardTitle>Add Subscription</CardTitle>
+                <CardTitle>{editingId ? 'Edit' : 'Add'} Subscription</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddSubscription} className="space-y-4">
@@ -205,7 +235,7 @@ export default function Subscriptions() {
                   </div>
                   <div className="flex gap-2 justify-end pt-4">
                     <Button type="button" variant="outline" onClick={() => { setShowModal(false); resetForm(); }}>Cancel</Button>
-                    <Button type="submit">Save Subscription</Button>
+                    <Button type="submit">{editingId ? 'Update' : 'Save'} Subscription</Button>
                   </div>
                 </form>
               </CardContent>

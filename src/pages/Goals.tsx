@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Target, PlusCircle, Trash2 } from 'lucide-react';
+import { Target, PlusCircle, Trash2, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -20,6 +20,7 @@ export default function Goals() {
   const [targetAmount, setTargetAmount] = useState('');
   const [currentAmount, setCurrentAmount] = useState('0');
   const [deadline, setDeadline] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) fetchData();
@@ -36,22 +37,45 @@ export default function Goals() {
     e.preventDefault();
     if (!user) return;
 
-    const { data, error } = await supabase.from('savings_goals').insert({
+    const payload = {
       user_id: user.id,
       name,
       target_amount: parseFloat(targetAmount),
       current_amount: parseFloat(currentAmount),
       deadline: deadline || null
-    }).select();
+    };
+
+    let response;
+    if (editingId) {
+      response = await supabase.from('savings_goals').update(payload).eq('id', editingId).select();
+    } else {
+      response = await supabase.from('savings_goals').insert(payload).select();
+    }
+
+    const { data, error } = response;
 
     if (!error && data) {
-      setGoals([data[0], ...goals]);
+      if (editingId) {
+        setGoals(goals.map(g => g.id === editingId ? data[0] : g));
+        toast.success('Savings goal updated!');
+      } else {
+        setGoals([data[0], ...goals]);
+        toast.success('Savings goal created!');
+      }
       setShowModal(false);
       resetForm();
-      toast.success('Savings goal created!');
     } else {
-      toast.error('Failed to create goal');
+      toast.error(`Failed to ${editingId ? 'update' : 'create'} goal`);
     }
+  };
+
+  const handleEdit = (goal: SavingsGoal) => {
+    setEditingId(goal.id);
+    setName(goal.name);
+    setTargetAmount(goal.target_amount.toString());
+    setCurrentAmount(goal.current_amount.toString());
+    setDeadline(goal.deadline ? new Date(goal.deadline).toISOString().split('T')[0] : '');
+    setShowModal(true);
   };
 
   const deleteGoal = async (id: string) => {
@@ -66,6 +90,7 @@ export default function Goals() {
     setTargetAmount('');
     setCurrentAmount('0');
     setDeadline('');
+    setEditingId(null);
   };
 
   if (loading) return (
@@ -111,10 +136,15 @@ export default function Goals() {
                 <Card className="relative overflow-hidden group hover:shadow-md transition-shadow h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
-                      <CardTitle className="truncate pr-4">{goal.name}</CardTitle>
-                      <button onClick={() => deleteGoal(goal.id)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-6">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <CardTitle className="truncate pr-12">{goal.name}</CardTitle>
+                      <div className="flex gap-2 absolute right-4 top-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleEdit(goal)} className="text-muted-foreground hover:text-primary transition-colors">
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => deleteGoal(goal.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     {goal.deadline && (
                       <CardDescription>Target: {new Date(goal.deadline).toLocaleDateString()}</CardDescription>
@@ -151,7 +181,7 @@ export default function Goals() {
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
           <Card className="w-full max-w-md shadow-lg border-2">
             <CardHeader>
-              <CardTitle>Create Savings Goal</CardTitle>
+              <CardTitle>{editingId ? 'Edit' : 'Create'} Savings Goal</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddGoal} className="space-y-4">
@@ -173,7 +203,7 @@ export default function Goals() {
                 </div>
                 <div className="flex gap-2 justify-end pt-4">
                   <Button type="button" variant="outline" onClick={() => { setShowModal(false); resetForm(); }}>Cancel</Button>
-                  <Button type="submit">Save Goal</Button>
+                  <Button type="submit">{editingId ? 'Update' : 'Save'} Goal</Button>
                 </div>
               </form>
             </CardContent>
