@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { SavingsGoal, Income, Expense, PurchaseAnalysis } from '../types';
@@ -47,15 +47,16 @@ export default function PurchaseAdvisor() {
     setLoading(false);
   };
 
+  const currentBalance = useMemo(() => calculateBalance(incomes, expenses), [incomes, expenses]);
+  const totalIncome = useMemo(() => incomes.reduce((acc, curr) => acc + curr.amount, 0), [incomes]);
+  const totalExpenses = useMemo(() => expenses.reduce((acc, curr) => acc + curr.amount, 0), [expenses]);
+
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setAnalyzing(true);
     
     const purchasePrice = parseFloat(price);
-    const currentBalance = calculateBalance(incomes, expenses);
-    const totalIncome = incomes.reduce((acc, curr) => acc + curr.amount, 0);
-    const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
     
     const score = calculateAffordabilityScore(purchasePrice, currentBalance, goals);
     const goalImpact = calculateGoalImpact(purchasePrice, currentBalance, goals);
@@ -96,7 +97,7 @@ export default function PurchaseAdvisor() {
     </div>
   );
 
-  const currentBalance = calculateBalance(incomes, expenses);
+
 
   return (
     <div className="space-y-8">

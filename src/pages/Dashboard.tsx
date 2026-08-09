@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Income, Expense } from '../types';
@@ -149,28 +149,28 @@ export default function Dashboard() {
     toast.success('Demo data loaded successfully!');
   };
 
-  const totalIncome = incomes.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
-  const balance = calculateBalance(incomes, expenses);
+  const totalIncome = useMemo(() => incomes.reduce((acc, curr) => acc + curr.amount, 0), [incomes]);
+  const totalExpenses = useMemo(() => expenses.reduce((acc, curr) => acc + curr.amount, 0), [expenses]);
+  const balance = useMemo(() => calculateBalance(incomes, expenses), [incomes, expenses]);
 
   // Group expenses for chart
-  const expenseByCategory = expenses.reduce((acc, curr) => {
+  const expenseByCategory = useMemo(() => expenses.reduce((acc, curr) => {
     acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<string, number>), [expenses]);
 
-  const chartData = Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }));
+  const chartData = useMemo(() => Object.entries(expenseByCategory).map(([name, value]) => ({ name, value })), [expenseByCategory]);
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#ff7c43', '#f95d6a', '#d45087'];
 
-  const comparisonData = [
+  const comparisonData = useMemo(() => [
     { name: 'Income', amount: totalIncome, fill: '#16a34a' },
     { name: 'Expenses', amount: totalExpenses, fill: '#dc2626' },
-  ];
+  ], [totalIncome, totalExpenses]);
 
-  const allTransactions = [
+  const allTransactions = useMemo(() => [
     ...incomes.map(i => ({ ...i, type: 'income' as const })),
     ...expenses.map(e => ({ ...e, type: 'expense' as const }))
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10);
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10), [incomes, expenses]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">

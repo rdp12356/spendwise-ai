@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Subscription } from '../types';
@@ -69,9 +69,9 @@ export default function Subscriptions() {
     setNextBillingDate('');
   };
 
-  const totalMonthlyCost = subscriptions.reduce((acc, sub) => {
+  const totalMonthlyCost = useMemo(() => subscriptions.reduce((acc, sub) => {
     return acc + (sub.billing_cycle === 'monthly' ? sub.cost : sub.cost / 12);
-  }, 0);
+  }, 0), [subscriptions]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
