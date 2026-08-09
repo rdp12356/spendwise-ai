@@ -15,6 +15,7 @@ export default function Subscriptions() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [insertingDemo, setInsertingDemo] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -69,6 +70,23 @@ export default function Subscriptions() {
     setNextBillingDate('');
   };
 
+  const insertDemoData = async () => {
+    if (!user) return;
+    if (!confirm('This will insert sample subscriptions. Proceed?')) return;
+    setInsertingDemo(true);
+    
+    await supabase.from('subscriptions').insert([
+      { user_id: user.id, name: 'Netflix Premium', cost: 649, billing_cycle: 'monthly', next_billing_date: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString().split('T')[0] },
+      { user_id: user.id, name: 'Spotify Duo', cost: 149, billing_cycle: 'monthly', next_billing_date: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString().split('T')[0] },
+      { user_id: user.id, name: 'Gym Membership', cost: 1500, billing_cycle: 'monthly', next_billing_date: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0] },
+      { user_id: user.id, name: 'Amazon Prime', cost: 1499, billing_cycle: 'yearly', next_billing_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0] }
+    ]);
+
+    await fetchData();
+    setInsertingDemo(false);
+    toast.success('Demo subscriptions loaded successfully!');
+  };
+
   const totalMonthlyCost = useMemo(() => subscriptions.reduce((acc, sub) => {
     return acc + (sub.billing_cycle === 'monthly' ? sub.cost : sub.cost / 12);
   }, 0), [subscriptions]);
@@ -84,9 +102,16 @@ export default function Subscriptions() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Subscriptions</h1>
-        <Button onClick={() => setShowModal(true)} className="gap-2">
-          <PlusCircle className="h-4 w-4" /> Add Subscription
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {subscriptions.length === 0 && (
+            <Button onClick={insertDemoData} variant="outline" className="gap-2 border-primary/50 text-primary hover:bg-primary/10" disabled={insertingDemo}>
+              {insertingDemo ? 'Loading...' : 'Load Demo Data'}
+            </Button>
+          )}
+          <Button onClick={() => setShowModal(true)} className="gap-2">
+            <PlusCircle className="h-4 w-4" /> Add Subscription
+          </Button>
+        </div>
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
